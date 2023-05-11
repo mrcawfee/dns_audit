@@ -1,4 +1,5 @@
-fn main() {
+pub mod zone_tokenizer;
 
-    println!("test");
+fn main() {
+    let tokens = zone_tokenizer::tokenize_zone_file("root.zone");
 }
