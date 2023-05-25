@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 getopts = "0.2"
 regex = "1"
+base64 = "0.21"
+unicase = "2"
+ascii = "1"
+arrayvec = "0.7.2"

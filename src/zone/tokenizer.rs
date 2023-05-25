@@ -4,7 +4,7 @@
  * @author Ben Wilder
  */
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq,Clone)]
 pub enum TokenType {
 	TypeNone,
 	TypeWhite,
@@ -15,23 +15,103 @@ pub enum TokenType {
 	TypeString,
 	TypeDirective
 }
+#[derive(Clone)]
 pub struct ZoneToken {
 	pub token : String,
-	pub token_type : TokenType
+	pub token_type : TokenType,
+	pub line : u32
 }
 
 impl ZoneToken {
 	pub fn new() -> Self {
 		Default::default()
 	}
+
+	pub fn to_string(&self) -> String {
+		if self.token_type == TokenType::TypeString {
+			return format!("\"{}\"", ZoneLines::escape(&self.token));
+		}
+		return self.token.clone();
+	}
+
+	pub fn ignore_white( iter : &mut std::slice::Iter<&ZoneToken> ) -> Result<bool, String> {
+		
+		loop {
+			match iter.next() {
+				Some(m) => {
+					if m.token_type != TokenType::TypeWhite  {
+						return Err( format!("Expected whitespace or empty, got {} at line {} ", m.token, m.line));
+					}
+				},
+				None => { break; }
+			};
+		};
+
+		Ok(true)
+	}
+
+	/**
+	 * expect the next token to be a number with type T and return it
+	 */
+	pub fn expect_int<T: std::fmt::Display + std::str::FromStr >( iter : &mut std::slice::Iter<&ZoneToken> ) -> Result<T, String> {
+		match iter.next() {
+			Some(tok) => {
+				if tok.token_type != TokenType::TypeNumber {
+					return Err(format!("expected number for mx weight, got '{}' on line {}", tok.token, tok.line));
+				}
+
+				match tok.token.parse::<T>() {
+					Ok(t) => { Ok(t) }, 
+					Err(_e) => {
+						return Err(format!("invalid Number, got '{}' at line {}", tok.token, tok.line ));
+					}
+				}
+		
+			},
+			None => { return Err("Expected token, got EOL".to_string()); }
+		}
+
+	}
+
+
+	/**
+	 * expect the next token to be a number with type T and return it
+	 */
+	 pub fn expect_non_white( iter : &mut std::slice::Iter<&ZoneToken> ) -> Result<String, String> {
+		match iter.next() {
+			Some(tok) => {
+				if tok.token_type == TokenType::TypeWhite {
+					return Err(format!("expected number for mx weight, got '{}' on line {}", tok.token, tok.line));
+				}
+
+				Ok(tok.token.clone())
+			},
+			None => { return Err("Expected token, got EOL".to_string()); }
+		}
+
+	}
+
 }
 
 impl Default for ZoneToken {
 	fn default() -> Self {
 		ZoneToken {
 			token: String::new(),
-			token_type: TokenType::TypeNone
+			token_type: TokenType::TypeNone,
+			line: 0
 		}
+	}
+}
+
+impl std::fmt::Display for ZoneToken {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let v: String;
+		if self.token_type == TokenType::TypeString {
+			v = format!("\"{}\"", ZoneLines::escape(&self.token));
+		} else { 
+			v = self.token.clone(); 
+		}
+		write!(f, "{}", v)
 	}
 }
 
@@ -89,14 +169,15 @@ impl ZoneLines {
 		};
 
 		let mut tok: ZoneToken = ZoneToken::new();
+		tok.line = 1;
 
-		let mut line_no = 1;
+		let mut line_no: u32 = 1;
 
 		let number_regex : regex::Regex = regex::Regex::new(r"^\d+(\.\d*)?$").unwrap();
 		let directive_regex = regex::Regex::new(r"^\$[A-Za-z]+$").unwrap();
 
 		// lambda function to push the tokens and reset everything that needs it
-		let mut push_token = | mut tok : ZoneToken, line : &mut ZoneLine, is_white : &mut bool | -> ZoneToken { 
+		let push_token = | mut tok : ZoneToken, line : &mut ZoneLine, is_white : &mut bool, line_no : &u32 | -> ZoneToken { 
 			if tok.token.len() > 0 {
 
 				// no token type, figure it out
@@ -117,7 +198,8 @@ impl ZoneLines {
 			*is_white = false;
 			return ZoneToken {
 				token: String::new(),
-				token_type: TokenType::TypeNone
+				token_type: TokenType::TypeNone,
+				line: line_no.clone()
 			};
 		};
 
@@ -155,7 +237,7 @@ impl ZoneLines {
 						continue;
 					} else if buffer[idx] == '\"' as u8 {
 						tok.token = ZoneLines::unescape(&tok.token);
-						tok = push_token(tok,&mut line, &mut is_white);
+						tok = push_token(tok,&mut line, &mut is_white, &line_no);
 						is_quote = false;
 					} else {
 						tok.token.push(buffer[idx] as char );
@@ -175,19 +257,13 @@ impl ZoneLines {
 						';' => {
 							// comment start
 							skip_endline = true;
-							tok = push_token(tok,&mut line, &mut is_white);
+							tok = push_token(tok,&mut line, &mut is_white, &line_no);
 						},
 						'(' => {
-							tok = push_token(tok,&mut line, &mut is_white);
-							line.tokens.push(tok);
-							tok = push_token(
-								ZoneToken{
-									token: "(".to_string(),
-									token_type: TokenType::TypeParenSt 
-								},
-								&mut line, 
-								&mut is_white
-							);
+							if !is_white {
+								tok = push_token(tok,&mut line, &mut is_white, &line_no);
+							}
+
 							paren_ct += 1;
 						},
 						')' => {
@@ -195,45 +271,38 @@ impl ZoneLines {
 								let msg = format!("unmatched ) at line {line_no}");
 								return Err(  msg );
 							}
-							tok = push_token(tok,&mut line, &mut is_white);
-							tok = push_token(
-								ZoneToken{
-									token: ")".to_string(),
-									token_type: TokenType::TypeParenEnd
-								},
-								&mut line, 
-								&mut is_white
-							);
+							if !is_white {
+								tok = push_token(tok,&mut line, &mut is_white, &line_no);
+							}
 							paren_ct -= 1;
 						},
 						'\"' => {
 
-							tok = push_token(tok,&mut line, &mut is_white);
+							tok = push_token(tok,&mut line, &mut is_white, &line_no);
 
 							tok.token_type = TokenType::TypeString;
 							is_quote = true;
 						},
 						'\n' => {
 							if paren_ct == 0 {
-								tok = push_token(tok,&mut line, &mut is_white);
+								tok = push_token(tok,&mut line, &mut is_white, &line_no);
 								line = push_line(line);
 							} else {
 								if is_white {
 									tok.token.push(c);
 								} else {
-									tok = push_token(tok, &mut line, &mut is_white);
+									tok = push_token(tok, &mut line, &mut is_white, &line_no);
 									tok.token_type = TokenType::TypeWhite;
 									tok.token.push(c);
 									is_white = true;
 								}
 							}
-							
 						},
 						'\r' | ' '  | '\t' => {
 							if is_white {
 								tok.token.push(c);
 							} else {
-								tok = push_token(tok, &mut line, &mut is_white);
+								tok = push_token(tok, &mut line, &mut is_white, &line_no);
 								tok.token_type = TokenType::TypeWhite;
 								tok.token.push(c);
 								is_white = true;
@@ -241,7 +310,7 @@ impl ZoneLines {
 						},
 						_ => {
 							if is_white { 
-								tok = push_token(tok, &mut line, &mut is_white);
+								tok = push_token(tok, &mut line, &mut is_white, &line_no);
 							}
 							tok.token.push( c );
 						}
@@ -258,7 +327,7 @@ impl ZoneLines {
 		}
 
 		if tok.token.len() > 0  {
-			push_token(tok, &mut line, &mut is_white);           
+			push_token(tok, &mut line, &mut is_white, &line_no);           
 		}
 
 		if line.tokens.len() > 0  {
@@ -268,7 +337,10 @@ impl ZoneLines {
 		return Ok(lines);
 	}
 
-	fn unescape( in_str : & String ) -> String {
+	/**
+	 * unescape strings 
+	 */
+	pub fn unescape( in_str : & String ) -> String {
 		let mut rval = String::new();
 
 		let mut chars = in_str.chars();
@@ -284,17 +356,90 @@ impl ZoneLines {
 
 				match chars.next() {
 					Some(m) => {
-						rval.push(m);
+
+						// this is a dumb way to do this, but this is for the \XXX escaping
+						// of characters
+						if m >= '0' && m <= '9' {
+							
+							let m2 = match chars.next() {
+								Some(n) => { n },
+								None => { 
+									rval.push(m);
+									break;
+								}
+							};
+
+							let m3 = match chars.next() {
+								Some(n) => { n },
+								None => { 
+									rval.push(m);
+									rval.push(m2);
+									break;
+								}
+							};
+
+							if m2 >= '0' && m2 <= '9' && m3 >= '0' && m3 <= '9'  {
+								let mut s = String::new();
+								s.push(m);
+								s.push(m2);
+								s.push(m3);
+
+								// convert to number
+								match s.parse::<u8>() {
+									Ok(t) => {
+										rval.push( t as char );
+									}, 
+									Err(_e) => {
+										rval.push(m);
+										rval.push(m2);
+										rval.push(m3);
+									}
+								}
+
+							}
+
+						} else {
+							rval.push(m);
+						}
 					},
 					None => {
 						rval.push(c);
 						break;
 					}
 				}
+
 			} else {
 				rval.push(c);
 			}
 		}
+
+		return rval;
+	}
+
+	/**
+	 * escape quotes and non-printable ascii characters
+	 */
+	pub fn escape( in_str : & String ) -> String {
+		let mut rval = String::new();
+
+		let mut chars = in_str.chars();
+
+		loop {
+
+			let c = match chars.next() {
+				Some(n) => { n },
+				None => { break; }
+			};
+
+			if c == '"' {
+				rval.push('\\');
+				rval.push(c);
+			} else if (c as u8) < 0x20 || (c as u8) >= 0x7f {
+				rval += &format!("\\{:03}", (c as u8) );
+			} else {
+				rval.push(c);
+			}
+		};
 
 		return rval;
 	}
@@ -306,5 +451,20 @@ impl Default for ZoneLines {
 		ZoneLines {
 			lines: Vec::new()
 		}
+	}
+}
+
+impl std::fmt::Display for TokenType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", match &self {
+			TokenType::TypeNone => { "TypeNone" },
+			TokenType::TypeWhite => { "TypeWhite" },
+			TokenType::TypeParenSt => { "TypeParenSt" },
+			TokenType::TypeParenEnd => { "TypeParenEnd" },
+			TokenType::TypeToken => { "TypeToken" },
+			TokenType::TypeNumber => { "TypeNumber" },
+			TokenType::TypeString => { "TypeString" },
+			TokenType::TypeDirective => { "TypeDirective" }
+		})
 	}
 }

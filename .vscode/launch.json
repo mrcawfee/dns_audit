@@ -22,8 +22,13 @@
             },
             "args": [
                 "-f",
-                "/home/ben/int.hosts"
+                "/home/ben/int.hosts",
+                "-o",
+                "int.101domain.com"
             ],
+            "env": {
+                "RUST_BACKTRACE": "1"
+            },
             "cwd": "${workspaceFolder}"
         },
         {
