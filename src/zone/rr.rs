@@ -87,7 +87,7 @@ impl RecordRDATA for RDATAa {
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
 
 		assert_eq!( std::mem::size_of::<u32>(), size as usize );
-		self.ip = std::net::Ipv4Addr::from(crate::dns::dns_read_int!(u32, buff, offset));
+		self.ip = std::net::Ipv4Addr::from(crate::query::dns_read_int!(u32, buff, offset));
 
 		Ok(())
     }
@@ -168,7 +168,7 @@ impl RecordRDATA for RDATAaaaa {
 
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
 		assert_eq!( std::mem::size_of::<u128>(), size as usize );
-        self.ip = std::net::Ipv6Addr::from( crate::dns::dns_read_int!(u128, buff, offset));
+        self.ip = std::net::Ipv6Addr::from( crate::query::dns_read_int!(u128, buff, offset));
 		Ok(())
     }
 
@@ -231,7 +231,7 @@ impl RecordRDATA for RDATAgeneric {
 	}
 
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
-		self.wire_data = crate::dns::read_buff(buff, offset, size as usize );
+		self.wire_data = crate::query::read_buff(buff, offset, size as usize );
 		Ok(())
 	}
 
@@ -315,7 +315,7 @@ impl RecordRDATA for RDATANameRR {
 
 
 	fn from_wire( &mut self, _size : u16,  buff : &[u8], offset : &mut usize ) -> Result<(), String> {
-		self.name.name = crate::dns::read_qname(buff, offset).as_str().to_string();
+		self.name.name = crate::query::read_qname(buff, offset).as_str().to_string();
 		self.name.fqdn = self.name.name.clone();
 		Ok(())
 	}
@@ -413,8 +413,8 @@ impl RecordRDATA for RDATAmx {
 	}
 
 	fn from_wire( &mut self, _size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
-        self.weight = crate::dns::dns_read_int!(u16, buff, offset);
-		self.target.name = crate::dns::read_qname(buff,offset).to_string();
+        self.weight = crate::query::dns_read_int!(u16, buff, offset);
+		self.target.name = crate::query::read_qname(buff,offset).to_string();
 		self.target.fqdn = self.target.name.clone();
 		Ok(())
     }
@@ -501,10 +501,10 @@ impl RecordRDATA for RDATAds {
 
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
 		let start_offset : usize = offset.clone();
-        self.key_tag = crate::dns::dns_read_int!(u16, buff, offset);
-		self.algorithm = crate::dns::dns_read_int!(u8, buff, offset);
-		self.digest_type = crate::dns::dns_read_int!(u8, buff, offset);
-		self.digest = crate::dns::read_buff(buff, offset, size as usize - (*offset - start_offset));
+        self.key_tag = crate::query::dns_read_int!(u16, buff, offset);
+		self.algorithm = crate::query::dns_read_int!(u8, buff, offset);
+		self.digest_type = crate::query::dns_read_int!(u8, buff, offset);
+		self.digest = crate::query::read_buff(buff, offset, size as usize - (*offset - start_offset));
 
 		Ok(())
     }
@@ -578,7 +578,7 @@ impl RecordRDATA for RDATAtxt {
 	}
 
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
-        let value = crate::dns::read_buff(buff, offset, size as usize);
+        let value = crate::query::read_buff(buff, offset, size as usize);
 		self.value = String::with_capacity( size as usize );
 		for c in value {
 			self.value.push(c as char);
@@ -689,17 +689,17 @@ impl RecordRDATA for RDATAsoa {
 
 	fn from_wire( &mut self, _size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
         
-		self.mname.name = crate::dns::read_qname(buff, offset).to_string();
+		self.mname.name = crate::query::read_qname(buff, offset).to_string();
 		self.mname.fqdn = self.mname.name.clone();
 
-		self.rname.name = crate::dns::read_qname(buff, offset).to_string();
+		self.rname.name = crate::query::read_qname(buff, offset).to_string();
 		self.rname.fqdn = self.mname.name.clone();
 
-		self.serial = crate::dns::dns_read_int!(u32, buff, offset );
-		self.refresh = crate::dns::dns_read_int!(u32, buff, offset );
-		self.retry = crate::dns::dns_read_int!(u32, buff, offset );
-		self.expire = crate::dns::dns_read_int!(u32, buff, offset );
-		self.min = crate::dns::dns_read_int!(u32, buff, offset );
+		self.serial = crate::query::dns_read_int!(u32, buff, offset );
+		self.refresh = crate::query::dns_read_int!(u32, buff, offset );
+		self.retry = crate::query::dns_read_int!(u32, buff, offset );
+		self.expire = crate::query::dns_read_int!(u32, buff, offset );
+		self.min = crate::query::dns_read_int!(u32, buff, offset );
 
 		Ok(())
     }
@@ -799,10 +799,10 @@ impl RecordRDATA for RDATAdnskey {
 
 	fn from_wire( &mut self, size : u16, buff : &[u8], offset : &mut usize ) -> Result<(), String> {
 		let offset_start = offset.clone();
-        self.flags = crate::dns::dns_read_int!(u16, buff, offset);
-		self.protocol = crate::dns::dns_read_int!(u8, buff, offset);
-		self.algorithm = crate::dns::dns_read_int!(u8, buff, offset);
-		self.public_key = crate::dns::read_buff(buff, offset, size as usize  - (*offset - offset_start));
+        self.flags = crate::query::dns_read_int!(u16, buff, offset);
+		self.protocol = crate::query::dns_read_int!(u8, buff, offset);
+		self.algorithm = crate::query::dns_read_int!(u8, buff, offset);
+		self.public_key = crate::query::read_buff(buff, offset, size as usize  - (*offset - offset_start));
 		Ok(())
     }
 

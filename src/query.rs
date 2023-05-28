@@ -3,6 +3,7 @@ use super::zone;
 
 extern crate ascii;
 extern crate arrayvec;
+use crate::config::{println_verbose, print_verbose};
 
 /**
  * macro function to convert an arbitrary integer from big endian into the int type specified by t
@@ -11,7 +12,7 @@ extern crate arrayvec;
  */
 macro_rules! dns_read_int {
 	($t:ident, $buff:expr, $offset:expr) => {
-		$t::from_be_bytes( crate::dns::read_buff(&$buff, $offset, std::mem::size_of::<$t>() ).try_into().unwrap() )
+		$t::from_be_bytes( crate::query::read_buff(&$buff, $offset, std::mem::size_of::<$t>() ).try_into().unwrap() )
 	};
 }
 pub(crate) use dns_read_int;
@@ -488,8 +489,12 @@ impl std::fmt::Display for OPCODE {
  * helper function to write the inputted byte string into the buffer vector
 */
 pub fn write_buff(  buff : &mut Vec<u8>, src : &[u8], offset : usize) -> usize {
+
+	println_verbose!(VERBOSE3, "add '{}' bytes offset {} to buffer", src.len(), offset);
+
 	let end = offset + src.len();
 	buff[offset..end].copy_from_slice(src);
+	println_verbose!(VERBOSE3, "Done");
 	end
 }
 
@@ -539,15 +544,14 @@ fn qname_namepart(  dn : &mut ascii::AsciiString, buffer : &[u8], offset : &mut 
 
 	if (part_len & COMP) == COMP  {
 		// compresed part
+		let mut buff2 = [0u8;2];
+		buff2[0] = part_len & !COMP;
+		buff2[1] = buffer[*offset];
 
-		let com_offset: u16  = dns_read_int!(u16, buffer, offset);
+		*offset = *offset + 1;
 
-		/*
-		com_offset = ntohs(com_offset);
-		com_offset = (com_offset << 2);
-		com_offset = com_offset >> 2;
-		*/
-		let mut usize_com_offset : usize = com_offset as usize;
+
+		let mut usize_com_offset : usize = u16::from_be_bytes(buff2) as usize;
 		while usize_com_offset < buffer.len() {
 			if !qname_namepart(dn, buffer, &mut usize_com_offset) {
 				break;
@@ -600,15 +604,17 @@ impl Wire for Question {
 		let mut last_l :u8 = 0;
 		let byte_len :u8 = bytes.len() as u8;
 
+
+		println_verbose!(VERBOSE3, "bytes len '{}' ", byte_len);
+
 		while x <= byte_len as u8 {
 			if x == byte_len || bytes[x as usize] == '.' as u8 {
 				let part_len : u8 = x - last_l;
 				if part_len == 0 { 
 					last_l = x;
+					x = x + 1;
 					continue;
 				}
-
-				println!("buff len {} part_len {} bytes len {}", buff.len(), part_len, bytes.len());
 
 				// add part + 1 
 				buff.resize( buff.len() + part_len as usize + 1, 0u8);
@@ -622,7 +628,10 @@ impl Wire for Question {
 			}
 
 			x = x + 1;
+
 		}
+
+		println_verbose!(VERBOSE3, "host done");
 
 		buff.resize( buff.len() + 5, 0u8);
 		offset = write_buff(&mut buff, &0u8.to_be_bytes(), offset);
@@ -663,19 +672,19 @@ impl std::fmt::Display for Question {
  */
 #[repr(C)]
 pub struct Header {
-	id : u16,
-	qr: bool, // is a query
-	opcode: OPCODE, // 
-	aa : bool,
-	tc : bool,
-	rd :bool,
-	ra: bool,
-	z: u8,
-	rcode : RCODE,
-	qdcount : u16,
-	ancount : u16,
-	nscount : u16,
-	arcount : u16	
+	pub id : u16,
+	pub qr: bool, // is a query
+	pub opcode: OPCODE, // 
+	pub aa : bool,
+	pub tc : bool,
+	pub rd :bool,
+	pub ra: bool,
+	pub z: u8,
+	pub rcode : RCODE,
+	pub qdcount : u16,
+	pub ancount : u16,
+	pub nscount : u16,
+	pub arcount : u16	
 }
 
 impl Wire for Header {
@@ -837,6 +846,8 @@ impl Sender {
 
 		let sockaddr = SocketAddr::new(self.server.clone(), 53);
 
+		println_verbose!(VERBOSE2, "Querying {} for rec {} at '{:?}'", host, query_type, sockaddr);
+
 		if let Err(e) =  socket.connect(sockaddr) {
 			return Err(format!("connect failed {}", e).to_string()); 
 		}
@@ -872,29 +883,37 @@ impl Sender {
 			request.append( &mut header_bytes );
 		}
 
+		println_verbose!(VERBOSE3, "header complete");
+
 		for question in questions {
 			let mut q_bytes = question.write();
 			request.append(&mut q_bytes);
+
 		}
 
-		println!("Sending request of {} bytes\nSEND: {}", request.len(), send_header);
+		println_verbose!(VERBOSE3, "question complete");
+
+
+		println_verbose!(VERBOSE1, "Sending request of {} bytes\nSEND: {}", (request.len()), send_header);
 
 		if let Err(e) = socket.send( &request ) {
 			return Err(format!("send failed {}", e).to_string());
 		}
 
+		println_verbose!(VERBOSE2, "send complete");
+
 		if let Err(e) = socket.set_read_timeout(Some( self.timeout.clone() )) {
 			return Err( format!("set_read_timeout failed {}", e).to_string() );
 		}
 
-		const BUFF_SZ: usize = 4096;
+		const BUFF_SZ: usize = 512;
 		let mut buff = [ 0u8; BUFF_SZ ];
 		let mut read_sz : usize = 0;
 
 		match socket.recv_from(&mut buff) {
 			Ok( (size, _addr) ) => {
 
-				println!("read {} bytes from {}", size, _addr);
+				println_verbose!(VERBOSE1, "read {} bytes from {}", size, _addr);
 				read_sz = size;
 			},
 			Err(e) => {
@@ -902,18 +921,33 @@ impl Sender {
 			}		
 		}
 
+		let mut x : usize = 0;
+		let mut y : usize = 0;
+		print_verbose!(VERBOSE2, "\t");
+		while x < read_sz {
+			if y >= 20 {
+				y = 0;
+				print_verbose!(VERBOSE2, "\n\t");
+			}
+			print_verbose!(VERBOSE2, "{:02x} ", buff[x]);
+			x = x + 1;
+			y = y + 1;
+		}
+		println_verbose!(VERBOSE2);
+
 		let mut offset : usize = 0;
 
 		self.recv_header.read(&buff, &mut offset);
 
-		println!("READ: {}", self.recv_header);
+		println_verbose!(VERBOSE2, "READ {} bytes", read_sz);
+		println_verbose!(VERBOSE1, "READ: {}", (self.recv_header) );
 
 		// read the question section
 		let mut x = 0;
 		while x < self.recv_header.qdcount {
 			let mut q: Question = Default::default();
 			q.read(&buff, &mut offset);
-			println!("READ QUESTION: {}", q);
+			println_verbose!(VERBOSE2, "READ QUESTION: {}", q);
 			self.recv_questions.push( q );
 			x = x + 1;
 		}
@@ -926,6 +960,9 @@ impl Sender {
 	}
 
 	fn read_record( buff : &[u8], offset : &mut usize, list : & mut Vec<zone::record::ZoneRecord>, rec_count : u16 ) {
+
+		println_verbose!(VERBOSE2, "Reading {} records, cur pos {:b} ", rec_count, buff[*offset]);
+
 		let mut x :u16 = 0;
 		while x < rec_count {
 

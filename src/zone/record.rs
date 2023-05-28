@@ -1,11 +1,13 @@
 
+use crate::config::println_verbose;
+
 /**
  * Zone records 
  */
 
 use super::{tokenizer, rr};
 
-use super::super::dns;
+use super::super::query;
 
 /**
  * Enumeration containing the record types
@@ -206,7 +208,7 @@ pub trait IZoneRecord : std::fmt::Display {
 pub struct ZoneRecord {
 	pub name : RecordName,
 	pub ttl : i32,
-	pub class : dns::NSClass,
+	pub class : query::NSClass,
 	pub record_type : RecordType,
 	pub record_type_other : Option<String>,
 	pub rdata : Option<Box<dyn rr::RecordRDATA>>
@@ -386,23 +388,49 @@ impl ZoneRecord {
 		}
 	}
 
+	/*
+	 * Create a zone record from the wire format that was returned from the dns query 
+	 */
 	pub fn create_from_wire(  buff : &[u8], offset : &mut usize ) -> Result<Self, String> {
 
 		let mut record = Self { ..Default::default() };
 
-		record.name.name = dns::read_qname(buff,offset).as_str().to_string();
+		record.name.name = query::read_qname(buff,offset).as_str().to_string();
 		record.name.fqdn = record.name.name.clone();
 
-		record.record_type = RecordType::from_u16(&dns::dns_read_int!(u16, buff, offset));
-		record.class = dns::NSClass::from_u16(&dns::dns_read_int!(u16, buff, offset));
-		record.ttl = dns::dns_read_int!(i32, buff, offset);
-		let rdlength = dns::dns_read_int!(u16, buff, offset);
+		record.record_type = RecordType::from_u16(&query::dns_read_int!(u16, buff, offset));
+		record.class = query::NSClass::from_u16(&query::dns_read_int!(u16, buff, offset));
+		record.ttl = query::dns_read_int!(i32, buff, offset);
+		let rdlength = query::dns_read_int!(u16, buff, offset);
+
+		println_verbose!(VERBOSE1, "offset {} name {} type {} ttl {} rdlength {}", offset, record.name.fqdn, record.record_type, record.ttl, rdlength);
 
 		let mut rdata = rr::create_from_type(record.record_type);
 		rdata.from_wire(rdlength, buff, offset)?;
 		record.rdata = Some(rdata);
 		
 		Ok(record)
+	}
+
+	/**
+	 * If the zone record provided is an Address record of A or AAAA it will return
+	 * the corresponding IP ADdress
+	 */
+	pub fn record_to_address( record : &ZoneRecord ) -> Option<std::net::IpAddr> {
+		
+		if let Some(rd) = &record.rdata {
+			
+			if let Some(rec) = rd.as_any().downcast_ref::<rr::RDATAa>() {
+				return Some(std::net::IpAddr::from( rec.ip ));
+			}
+			
+			if let Some(rec) = rd.as_any().downcast_ref::<rr::RDATAaaaa>() {
+				return Some(std::net::IpAddr::from( rec.ip ));
+			}
+		}
+
+		None
+
 	}
 
 
@@ -415,7 +443,7 @@ impl Default for ZoneRecord {
 		ZoneRecord {
 			name: Default::default(),
 			ttl : 0,
-			class: dns::NSClass::C_IN,
+			class: query::NSClass::C_IN,
 			record_type : RecordType::RecordTypeOther,
 			record_type_other: None,
 			rdata:  None
@@ -485,7 +513,7 @@ impl IZoneRecord for ZoneRecord {
 							tok.token.to_ascii_uppercase() == "CH" ||
 							tok.token.to_ascii_uppercase() == "HS"
 						{
-							self.class = dns::NSClass::from_string( &tok.token );
+							self.class = query::NSClass::from_string( &tok.token );
 							rec_pos = RecordPos::RTYPE;
 						} else {
 							return Err(format!("invalid TTL, got '{}' at line {} ({e}) ", tok.token, tok.line));
@@ -500,7 +528,7 @@ impl IZoneRecord for ZoneRecord {
 					tok.token.to_ascii_uppercase() == "CH" ||
 					tok.token.to_ascii_uppercase() == "HS"
 				{
-					self.class = dns::NSClass::from_string( &tok.token );
+					self.class = query::NSClass::from_string( &tok.token );
 					rec_pos = RecordPos::RTYPE;
 				} else {
 					return Err( format!("Record class is of an invalid type, expected IN,CS,CH,HS got '{}' at line {}", tok.token, tok.line ));
