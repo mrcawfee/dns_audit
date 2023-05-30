@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-use crate::{root, query, zone};
+use crate::{root, query::{self}, zone};
 use std::{sync::{Arc, RwLock}};
 
 #[derive(Serialize, Deserialize)]
@@ -138,37 +138,79 @@ impl Monitor {
 
 		if let Some(ips) = &me.ip {
 
-			if let Ok( addresses ) = dns_lookup::lookup_host( &me.domain_name ) {				
-				rval.ips = Some(addresses);
+			for auth_ns in rval.nameservers.as_ref().unwrap() {
 
-				if rval.ips.as_ref().unwrap().len() == 0 { 
-					rval.flags.push(ErrorCode::NoResolve);
-					rval.reason.push( "domain did not resolve".to_string() );
-					rval.success = false;
-				} else if rval.ips.as_ref().unwrap().len() != ips.len() {
-					rval.flags.push(ErrorCode::ResolveIpNotMatch);
-					rval.reason.push( "did not return the correct ips".to_string() );
-					rval.success = false;
-				} else {
-					for ip in rval.ips.as_ref().unwrap() {
-						let mut found = false;
-						for ip2 in ips {
-							if ip == ip2 {
-								found = true;
-								break;
+				let mut result_from_ns = false;
+
+				let mut read_addresses : Vec<std::net::IpAddr> = Vec::new();
+				if let Ok( addresses ) = dns_lookup::lookup_host( &auth_ns ) {	
+					for addr in addresses {
+
+						let mut query = query::Sender::new( &addr );
+						if let Ok(_) = query.query( &me.domain_name, query::QueryType::T_A) {
+
+							result_from_ns = true;
+
+							for res in &query.answer {
+								if res.record_type == zone::record::RecordType::A {
+									if let Some(a) = res.rdata.as_ref().unwrap().as_any().downcast_ref::<zone::rr::RDATAa>() {
+										read_addresses.push( std::net::IpAddr::from(a.ip.clone())) ;
+									}
+								}
 							}
 						}
-						if !found {
-							rval.flags.push(ErrorCode::ResolveIpNotMatch);
-							rval.reason.push( "did not return the correct ips".to_string() );
-							rval.success = false;
+
+						if let Ok(_) = query.query( &me.domain_name, query::QueryType::T_AAAA) {
+
+							result_from_ns = true;
+
+							for res in &query.answer {
+								if res.record_type == zone::record::RecordType::A {
+									if let Some(a) = res.rdata.as_ref().unwrap().as_any().downcast_ref::<zone::rr::RDATAaaaa>() {
+										read_addresses.push( std::net::IpAddr::from(a.ip.clone())) ;
+									}
+								}
+							}
 						}
+
+						if result_from_ns {
+							break;
+						}
+
 					}
 				}
+				
+				if result_from_ns {
+					rval.ips = Some(read_addresses);
 
-			} else {
-				rval.reason.push( "domain did not return any address records".to_string() );
-				rval.success = false;
+					if rval.ips.as_ref().unwrap().len() == 0 { 
+						rval.flags.push(ErrorCode::NoResolve);
+						rval.reason.push( "domain did not resolve".to_string() );
+						rval.success = false;
+					} else if rval.ips.as_ref().unwrap().len() != ips.len() {
+						rval.flags.push(ErrorCode::ResolveIpNotMatch);
+						rval.reason.push( "did not return the correct ips".to_string() );
+						rval.success = false;
+					} else {
+						for ip in rval.ips.as_ref().unwrap() {
+							let mut found = false;
+							for ip2 in ips {
+								if ip == ip2 {
+									found = true;
+									break;
+								}
+							}
+							if !found {
+								rval.flags.push(ErrorCode::ResolveIpNotMatch);
+								rval.reason.push( "did not return the correct ips".to_string() );
+								rval.success = false;
+							}
+						}
+					}
+
+					break;
+				}
+
 			}
 
 		}

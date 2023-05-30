@@ -1,8 +1,0 @@
-[
-	{
-		"domain_name": "101domain.com",
-		"ns": [ "ns1.101domain.com" ],
-		"ip": [ "1.2.3.4" ]
-	}
-]
-

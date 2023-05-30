@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-use std::{io::{Write, stdout}, process::exit, sync::{Arc, RwLock}, fs::File};
+use std::{io::{Write, stdout, Read, stderr}, process::exit, sync::{Arc, RwLock}, fs::File, thread::sleep, time::Duration};
 
 pub mod zone;
 pub mod root;
@@ -43,32 +43,79 @@ fn main() {
 
 	let mut opts = getopts::Options::new();
 	opts.optopt("", "root-zone", "Root zone file path", "PATH");
-	opts.reqopt("c", "", "file", "JSON Configuration file");
+	opts.optopt("c", "", "JSON Configuration file, or - for stdin", "file");
 	opts.optopt("", "cache-out", "write cache file", "FILE");
 	opts.optopt("", "cache-in", "read cache file", "FILE");
-	opts.optopt("o", "", "Write results as JSON", "FILE");
-	opts.optflag("w", "watch", "Keep running until any change");
+	opts.optopt("o", "", "Write results as JSON, or - for stdout", "FILE");
+	opts.optopt("w", "watch", "Keep running until any change", "# seconds");
 	opts.optflag("","all", "When this flag is on, all results are written. when absent only errors are shown");
 	opts.optflagmulti("v", "verbose", "Verbose Mode");
+	opts.optflag("h", "help", "Help");
 
 	let matches = match opts.parse(&args[1..]) {
 		Ok(m) => { m }
-		Err(f) => { panic!("{}", f.to_string()) }
+		Err(e) => { 
+			writeln!(stderr().lock(), "{}", opts.usage( &e.to_string() )).unwrap(); 
+			exit(1); 
+		}
 	};
+
+	if matches.opt_present("h") {
+		writeln!(stderr().lock(), "{}", opts.usage("")).unwrap();
+		exit(1);
+	}
 
 	*crate::config::VERBOSE.write().unwrap() = matches.opt_count("v");
 
-	let watch = matches.opt_present("w");
+	let watch : Option<Duration> = match matches.opt_get::<u64>("w") {
+		Ok(w) =>  { 
+			match w {
+				Some(w2) => Some( Duration::new(w2,0) ),
+				None => None
+			}
+		}
+		Err(e) => {
+			writeln!(stderr().lock(), "{}", opts.usage( &format!("-w is invald: {}", e) )).unwrap(); 
+			exit(1); 
+		}
+	};
 	let all = matches.opt_present("all");
 
 	let file_name: String = match matches.opt_str("root-zone") {
 		Some(m) => { m },
-		None => { panic!("f is required") }
+		None => { 
+			writeln!(stderr().lock(), "{}", opts.usage("root-zone is required")).unwrap();
+			exit(1);
+		}
 	};
 	
-	let json_file: String = match matches.opt_str("c") {
-		Some(m) => { m },
-		None => { String::new() }
+	let mut local_config : Vec<monitor::Monitor>;
+	match matches.opt_str("c") {
+		Some(json_file) => { 
+
+			let mut json_contents: String;
+
+			if json_file == "-" {
+
+				json_contents = String::new();
+
+				if let Err(e) = std::io::stdin().lock().read_to_string(&mut json_contents) {
+					panic!("{}", e);
+				}
+				
+			} else {
+				json_contents = std::fs::read_to_string(&json_file).expect("failed to read JSON");
+			}
+		
+			local_config = match serde_json::from_str::<Vec<monitor::Monitor>>(json_contents.as_str() ) {
+				Ok( m ) =>  { m },
+				Err(e ) => { panic!("{}", e); }
+			};
+
+		 },
+		None => { 
+			local_config = Vec::new();
+		}
 	};
 
 	let mut root = match root::Root::create(&file_name, &".".to_string()) {
@@ -104,7 +151,9 @@ fn main() {
 		
 	} else if let Some(cachefn) = matches.opt_str("cache-out") {
 
+		write!(stderr().lock(), "Testing Root Nameservers... ").unwrap();
 		root.performance_test(20);
+		writeln!(stderr().lock(), "Complete!").unwrap();
 
 		match &mut std::fs::File::create(cachefn) {
 			Ok(fp) => { 
@@ -116,10 +165,10 @@ fn main() {
 		
 	}
 
-	let mut local_config = match serde_json::from_str::<Vec<monitor::Monitor>>(std::fs::read_to_string(&json_file).expect("failed to read JSON").as_str() ) {
-		Ok( m ) =>  { m },
-		Err(e ) => { panic!("{}", e); }
-	};
+	if local_config.len() == 0  {
+		writeln!(stderr().lock(), "Nothing to test").unwrap();
+		exit(1);
+	}
 
 	let mut config : Vec<Arc<RwLock<monitor::Monitor>>> = Vec::new();
 
@@ -144,7 +193,7 @@ fn main() {
 					writeln!(std::io::stdout().lock(), "{}", res).unwrap();
 				}
 				if !res.success {
-					code = 1;
+					code = 2;
 				}
 
 				results.push(res);
@@ -156,9 +205,11 @@ fn main() {
 			fp.write_all(serde_json::to_string( &results ).unwrap().as_bytes()).unwrap();
 		}
 
-		if !watch || code != 0 {
+		if watch.is_none()  || code != 0 {
 			break;
 		}
+
+		sleep(watch.unwrap().clone() );
 
 	}
 
