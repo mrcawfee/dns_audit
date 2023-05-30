@@ -18,10 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-use crate::{config::println_verbose, root, query, zone};
-use std::{io::{Write, stderr}, sync::{Arc, RwLock}, fmt::Display};
-
-use serde::{Deserialize, Serialize};
+use crate::{root, query, zone};
+use std::{sync::{Arc, RwLock}};
 
 #[derive(Serialize, Deserialize)]
 pub enum ErrorCode {

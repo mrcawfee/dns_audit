@@ -390,8 +390,7 @@ impl std::fmt::Display for QueryType {
 				Self::T_CAA => { "T_CAA" },
 				Self::T_AVC => { "T_AVC" },
 				Self::T_TA => { "T_TA" },
-				Self::T_DLV => { "T_DLV" },
-				_ => { "T_INVALID "}
+				Self::T_DLV => { "T_DLV" }
 			}
 		)
     }
@@ -928,7 +927,7 @@ impl Sender {
 
 		const BUFF_SZ: usize = 512;
 		let mut buff = [ 0u8; BUFF_SZ ];
-		let mut read_sz : usize = 0;
+		let read_sz : usize;
 
 		match socket.recv_from(&mut buff) {
 			Ok( (size, _addr) ) => {

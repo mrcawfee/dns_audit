@@ -21,7 +21,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use std::cmp::Ordering;
 use std::ops::Add;
 use serde::ser::SerializeMap;
-use serde::{Deserialize, Serialize};
 
 use regex::Regex;
 
@@ -30,7 +29,7 @@ use crate::config::println_verbose;
 use super::zone;
 use super::query;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use std::sync::RwLock;
 
 #[derive(Serialize, Deserialize)]

@@ -18,7 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 */
 
-use std::{io::{Write, stdout}, process::exit, sync::{Arc, Mutex, RwLock}, fs::File};
+use std::{io::{Write, stdout}, process::exit, sync::{Arc, RwLock}, fs::File};
 
 pub mod zone;
 pub mod root;
@@ -83,7 +83,7 @@ fn main() {
 		if out_fn == "-" {
 			out_fp = Some( Box::new(stdout().lock()) );
 		} else {
-			let mut fp: Box<File> = match File::create(out_fn) {
+			let fp: Box<File> = match File::create(out_fn) {
 				Ok(fp) => { Box::new(fp) }
 				Err(e) => { panic!("failed to open {} for writing {}", out_fn, e) }
 			};
@@ -143,12 +143,17 @@ fn main() {
 				if out_fp.is_none() {
 					writeln!(std::io::stdout().lock(), "{}", res).unwrap();
 				}
+				if !res.success {
+					code = 1;
+				}
+
 				results.push(res);
+
 			}
 		}
 
 		if let Some(fp) = &mut out_fp {
-			fp.write_all(serde_json::to_string( &results ).unwrap().as_bytes());
+			fp.write_all(serde_json::to_string( &results ).unwrap().as_bytes()).unwrap();
 		}
 
 		if !watch || code != 0 {
