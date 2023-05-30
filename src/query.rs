@@ -721,26 +721,26 @@ impl Wire for Header {
 		// boo lack of union bit offsets
 		let mut flag1 :u8 = 0;
 		if self.rd {
-			flag1 &= 0b10000000;
+			flag1 |= 0b10000000;
 		}
 		if self.tc {
-			flag1 &= 0b01000000;
+			flag1 |= 0b01000000;
 		}
 		if self.aa {
-			flag1 &= 0b00100000;
+			flag1 |= 0b00100000;
 		}
-		flag1 &= 0b00011110 & (self.opcode.as_u8() << 1);
+		flag1 |= 0b00011110 & (self.opcode.as_u8() << 1);
 		if self.qr {
-			flag1 &= 0b00000001;
+			flag1 |= 0b00000001;
 		}
 		offset = write_buff(&mut buff, &flag1.to_be_bytes(), offset);
 
 
 		let mut flag2 :u8 = 0;
-		flag2 &= 0b11110000 & (self.rcode.as_u8() << 4);
-		flag2 &= 0b00001110 & (self.z << 1);
+		flag2 |= 0b11110000 & (self.rcode.as_u8() << 4);
+		flag2 |= 0b00001110 & (self.z << 1);
 		if self.ra {
-			flag2 &= 0b00000001
+			flag2 |= 0b00000001
 		}
 		offset = write_buff(&mut buff, &flag2.to_be_bytes(), offset);
 		offset = write_buff(&mut buff, &self.qdcount.to_be_bytes(), offset);
