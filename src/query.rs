@@ -114,90 +114,90 @@ impl NSClass {
 #[derive(PartialEq, Eq,Clone,Copy)]
 pub enum QueryType {
 	T_INVALID = 0,
-    T_A = 1,
-    T_NS = 2,
-    T_MD = 3,
-    T_MF = 4,
-    T_CNAME = 5,
-    T_SOA = 6,
-    T_MB = 7,
-    T_MG = 8,
-    T_MR = 9,
-    T_NULL = 10,
-    T_WKS = 11,
-    T_PTR = 12,
-    T_HINFO = 13,
-    T_MINFO = 14,
-    T_MX = 15,
-    T_TXT = 16,
-    T_RP = 17,
-    T_AFSDB = 18,
-    T_X25 = 19,
-    T_ISDN = 20,
-    T_RT = 21,
-    T_NSAP = 22,
-    T_NSAP_PTR = 23,
-    T_SIG = 24,
-    T_KEY = 25,
-    T_PX = 26,
-    T_GPOS = 27,
-    T_AAAA = 28,
-    T_LOC = 29,
-    T_NXT = 30,
-    T_EID = 31,
-    T_NIMLOC = 32,
-    T_SRV = 33,
-    T_ATMA = 34,
-    T_NAPTR = 35,
-    T_KX = 36,
-    T_CERT = 37,
-    T_A6 = 38,
-    T_DNAME = 39,
-    T_SINK = 40,
-    T_OPT = 41,
-    T_APL = 42,
-    T_DS = 43,
-    T_SSHFP = 44,
-    T_IPSECKEY = 45,
-    T_RRSIG = 46,
-    T_NSEC = 47,
-    T_DNSKEY = 48,
-    T_DHCID = 49,
-    T_NSEC3 = 50,
-    T_NSEC3PARAM = 51,
-    T_TLSA = 52,
-    T_SMIMEA = 53,
-    T_HIP = 55,
-    T_NINFO = 56,
-    T_RKEY = 57,
-    T_TALINK = 58,
-    T_CDS = 59,
-    T_CDNSKEY = 60,
-    T_OPENPGPKEY = 61,
-    T_CSYNC = 62,
-    T_SPF = 99,
-    T_UINFO = 100,
-    T_UID = 101,
-    T_GID = 102,
-    T_UNSPEC = 103,
-    T_NID = 104,
-    T_L32 = 105,
-    T_L64 = 106,
-    T_LP = 107,
-    T_EUI48 = 108,
-    T_EUI64 = 109,
-    T_TKEY = 249,
-    T_TSIG = 250,
-    T_IXFR = 251,
-    T_AXFR = 252,
-    T_MAILB = 253,
-    T_MAILA = 254,
-    T_ANY = 255,
-    T_URI = 256,
-    T_CAA = 257,
-    T_AVC = 258,
-    T_TA = 32768,
-    T_DLV = 32769
+	T_A = 1,
+	T_NS = 2,
+	T_MD = 3,
+	T_MF = 4,
+	T_CNAME = 5,
+	T_SOA = 6,
+	T_MB = 7,
+	T_MG = 8,
+	T_MR = 9,
+	T_NULL = 10,
+	T_WKS = 11,
+	T_PTR = 12,
+	T_HINFO = 13,
+	T_MINFO = 14,
+	T_MX = 15,
+	T_TXT = 16,
+	T_RP = 17,
+	T_AFSDB = 18,
+	T_X25 = 19,
+	T_ISDN = 20,
+	T_RT = 21,
+	T_NSAP = 22,
+	T_NSAP_PTR = 23,
+	T_SIG = 24,
+	T_KEY = 25,
+	T_PX = 26,
+	T_GPOS = 27,
+	T_AAAA = 28,
+	T_LOC = 29,
+	T_NXT = 30,
+	T_EID = 31,
+	T_NIMLOC = 32,
+	T_SRV = 33,
+	T_ATMA = 34,
+	T_NAPTR = 35,
+	T_KX = 36,
+	T_CERT = 37,
+	T_A6 = 38,
+	T_DNAME = 39,
+	T_SINK = 40,
+	T_OPT = 41,
+	T_APL = 42,
+	T_DS = 43,
+	T_SSHFP = 44,
+	T_IPSECKEY = 45,
+	T_RRSIG = 46,
+	T_NSEC = 47,
+	T_DNSKEY = 48,
+	T_DHCID = 49,
+	T_NSEC3 = 50,
+	T_NSEC3PARAM = 51,
+	T_TLSA = 52,
+	T_SMIMEA = 53,
+	T_HIP = 55,
+	T_NINFO = 56,
+	T_RKEY = 57,
+	T_TALINK = 58,
+	T_CDS = 59,
+	T_CDNSKEY = 60,
+	T_OPENPGPKEY = 61,
+	T_CSYNC = 62,
+	T_SPF = 99,
+	T_UINFO = 100,
+	T_UID = 101,
+	T_GID = 102,
+	T_UNSPEC = 103,
+	T_NID = 104,
+	T_L32 = 105,
+	T_L64 = 106,
+	T_LP = 107,
+	T_EUI48 = 108,
+	T_EUI64 = 109,
+	T_TKEY = 249,
+	T_TSIG = 250,
+	T_IXFR = 251,
+	T_AXFR = 252,
+	T_MAILB = 253,
+	T_MAILA = 254,
+	T_ANY = 255,
+	T_URI = 256,
+	T_CAA = 257,
+	T_AVC = 258,
+	T_TA = 32768,
+	T_DLV = 32769
 }
 
 impl QueryType {
@@ -301,7 +301,7 @@ impl QueryType {
 
 impl std::fmt::Display for QueryType {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
 			"{}",
@@ -393,7 +393,7 @@ impl std::fmt::Display for QueryType {
 				Self::T_DLV => { "T_DLV" }
 			}
 		)
-    }
+	}
 }
 
 #[repr(u8)]
@@ -442,8 +442,8 @@ impl RCODE {
 
 impl std::fmt::Display for RCODE {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", match self {
 			RCODE::NOERROR=>{"NOERROR"},
 			RCODE::FORMERR=>{"FORMERR"},
 			RCODE::SERVFAIL=>{"SERVFAIL"},
@@ -456,7 +456,7 @@ impl std::fmt::Display for RCODE {
 			RCODE::NOTAUTH =>{"NOTAUTH"},
 			RCODE::NOTZONE =>{"NOTZONE"},
 		})
-    }
+	}
 }
 
 #[repr(u8)]
@@ -494,15 +494,15 @@ impl OPCODE {
 
 impl std::fmt::Display for OPCODE {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", match self {
 			Self::O_QUERY=>{"QUERY"},
 			Self::O_IQUERY=>{"IQUERY"},
 			Self::O_STATUS=>{"STATUS"},
 			Self::O_NOTIFY=>{"NOTIFY"},
 			Self::O_UPDATE=>{"UPDATE"}
 		})
-    }
+	}
 }
 /**
  * helper function to write the inputted byte string into the buffer vector
@@ -661,10 +661,10 @@ impl Wire for Question {
 	}
 
 	fn read ( &mut self, buff : &[u8], offset: &mut usize ) {
-        self.host = read_qname(buff, offset);
+		self.host = read_qname(buff, offset);
 		self.qtype = QueryType::from_u16( &dns_read_int!(u16, buff, offset));
 		self.qclass = NSClass::from_u16( &dns_read_int!(u16, buff, offset));
-    }
+	}
 
 }
 
@@ -679,10 +679,10 @@ impl Default for Question {
 }
 
 impl std::fmt::Display for Question {
-    
+	
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "host={} qtype={} class={}", self.host, self.qtype.as_u16(), self.qclass.as_u16())
-    }
+		write!(f, "host={} qtype={} class={}", self.host, self.qtype.as_u16(), self.qclass.as_u16())
+	}
 
 }
 
@@ -802,8 +802,8 @@ impl Default for Header {
 
 impl std::fmt::Display for Header {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(
 			f, 
 			"id={} rd={} tc={} aa={} opcode={} qr={} rcode={} z={} ra={} qdcount={} ancount={} nscount={} arcount={} ",
 			self.id,
@@ -820,7 +820,7 @@ impl std::fmt::Display for Header {
 			self.nscount,
 			self.arcount
 		)
-    }
+	}
 }
 
 /**
@@ -996,12 +996,12 @@ impl Sender {
 
 impl std::fmt::Display for Sender {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Header {}", self.recv_header)?;
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Header {}", self.recv_header)?;
 		for q in &self.recv_questions {
 			write!(f, "Question {}", q)?;
 		}
 		write!(f, "\n")
-    }
+	}
 
 }

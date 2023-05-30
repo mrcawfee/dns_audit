@@ -41,15 +41,15 @@ pub struct MonitorResult {
 
 impl std::fmt::Display for MonitorResult {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.success {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.success {
 			writeln!(f, "{} OK", self.domain_name)?;
 		} else {
 			writeln!(f, "{} FAIL", self.domain_name)?;
 			writeln!(f, "\t{}", self.reason.join("\n\t"))?;
 		}
 		Ok(())
-    }
+	}
 
 }
 
@@ -72,12 +72,12 @@ impl Monitor {
 
 		let mut rval: MonitorResult = MonitorResult {
 			domain_name : me.domain_name.clone(),
-            success: true,
+			success: true,
 			reason : Vec::new(),
 			flags: Vec::new(),
-            nameservers: None,
-            ips: None,
-        };
+			nameservers: None,
+			ips: None,
+		};
 
 
 		let mut read_ns: Vec<String> = Vec::new();

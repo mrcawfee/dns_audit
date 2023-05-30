@@ -216,7 +216,7 @@ pub trait IZoneRecord : std::fmt::Display {
 
 	fn from_iter( &mut self, iter : &mut std::slice::Iter<tokenizer::ZoneToken> ) -> Result<(), String>;
 
-    fn as_any(&mut self) -> &mut dyn std::any::Any;
+	fn as_any(&mut self) -> &mut dyn std::any::Any;
 
 
 }
@@ -624,7 +624,7 @@ pub struct ZoneDirective {
 
 impl IZoneRecord for ZoneDirective {
 
-    fn from_iter( &mut self, iter : &mut std::slice::Iter<tokenizer::ZoneToken> ) -> Result< (), String> {
+	fn from_iter( &mut self, iter : &mut std::slice::Iter<tokenizer::ZoneToken> ) -> Result< (), String> {
 		
 		loop {
 			match iter.next() {
@@ -641,7 +641,7 @@ impl IZoneRecord for ZoneDirective {
 		};
 
 		Err("EOL".to_string())
-    }
+	}
 
 	fn as_any( &mut self) -> &mut dyn std::any::Any {
 		self

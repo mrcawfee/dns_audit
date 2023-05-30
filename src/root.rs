@@ -95,13 +95,13 @@ impl NameServersForZone {
 }
 
 impl Clone for NameServersForZone {
-    
+	
 	fn clone(&self) -> Self {
-        Self { 
+		Self { 
 			zone_name: self.zone_name.clone(), 
 			servers: self.servers.clone() 
 		}
-    }
+	}
 }
 
 
@@ -483,24 +483,24 @@ impl Root {
 
 impl serde::Serialize for Root {
 
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer 
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer 
 	{
-        let mut map = serializer.serialize_map(Some(self.root_addr.len()))?;
-        for (k, v) in &self.root_addr {
-            map.serialize_entry(k, &*v.read().unwrap())?;
-        }
-        map.end()
-    }
+		let mut map = serializer.serialize_map(Some(self.root_addr.len()))?;
+		for (k, v) in &self.root_addr {
+			map.serialize_entry(k, &*v.read().unwrap())?;
+		}
+		map.end()
+	}
 }
 
 
 impl<'de> serde::Deserialize<'de> for Root {
 
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> 
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de> 
 	{
 		
 		let mut rval = Self {
@@ -526,7 +526,7 @@ impl<'de> serde::Deserialize<'de> for Root {
 		}
 
 		Ok(rval)
-    }
+	}
 }
 
 struct RootVisitor {
@@ -535,32 +535,32 @@ struct RootVisitor {
 
 impl<'de> serde::de::Visitor<'de> for RootVisitor {
 	
-    type Value = std::collections::hash_map::HashMap< String, NameServersForZone >;
+	type Value = std::collections::hash_map::HashMap< String, NameServersForZone >;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("cache output")
-    }
+	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+		formatter.write_str("cache output")
+	}
 
 	fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: serde::de::MapAccess<'de>,
-    {
-        let mut map = Self::Value::with_capacity(access.size_hint().unwrap_or(0));
+	where
+		M: serde::de::MapAccess<'de>,
+	{
+		let mut map = Self::Value::with_capacity(access.size_hint().unwrap_or(0));
 
-        // While there are entries remaining in the input, add them
-        // into our map.
-        while let Some((key, value)) = access.next_entry()? {
-            map.insert(key, value);
-        }
+		// While there are entries remaining in the input, add them
+		// into our map.
+		while let Some((key, value)) = access.next_entry()? {
+			map.insert(key, value);
+		}
 
-        Ok(map)
-    }
+		Ok(map)
+	}
 
 }
 
 impl std::fmt::Display for Root {
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		
 		for (zone_name, records) in &self.root_addr {
 			write!(f, "\nZone: '{}'", zone_name)?;
@@ -569,7 +569,7 @@ impl std::fmt::Display for Root {
 				write!(f, "\n\t{} {:?}", rec.ip, rec.speed)?;
 			}
 		}
-		        
+				
 		Ok(())
-    }
+	}
 }
