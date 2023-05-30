@@ -1,3 +1,22 @@
+/**
+DNS Audit Tool
+
+(c) 2023 Benjamin P Wilder, All Rights Reserved
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
 
 use base64::Engine;
 
@@ -316,6 +335,9 @@ impl RecordRDATA for RDATANameRR {
 
 	fn from_wire( &mut self, _size : u16,  buff : &[u8], offset : &mut usize ) -> Result<(), String> {
 		self.name.name = crate::query::read_qname(buff, offset).as_str().to_string();
+		if !self.name.name.ends_with(&".".to_string()) {
+			self.name.name.push('.');
+		}
 		self.name.fqdn = self.name.name.clone();
 		Ok(())
 	}

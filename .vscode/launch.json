@@ -21,10 +21,12 @@
                 }
             },
             "args": [
-                "-f",
+                "--root-zone",
                 "/home/ben/dns/root.zone",
-                "-d",
-                "bob.it.com"
+                "--cache-in",
+                "root.json",
+                "-c",
+                "input.json"
             ],
             "env": {
                 "RUST_BACKTRACE": "1"

@@ -1,3 +1,22 @@
+/**
+DNS Audit Tool
+
+(c) 2023 Benjamin P Wilder, All Rights Reserved
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
 
 use crate::config::println_verbose;
 
@@ -403,7 +422,7 @@ impl ZoneRecord {
 		record.ttl = query::dns_read_int!(i32, buff, offset);
 		let rdlength = query::dns_read_int!(u16, buff, offset);
 
-		println_verbose!(VERBOSE1, "offset {} name {} type {} ttl {} rdlength {}", offset, record.name.fqdn, record.record_type, record.ttl, rdlength);
+		println_verbose!(VERBOSE3, "offset {} name {} type {} ttl {} rdlength {}", offset, record.name.fqdn, record.record_type, record.ttl, rdlength);
 
 		let mut rdata = rr::create_from_type(record.record_type);
 		rdata.from_wire(rdlength, buff, offset)?;

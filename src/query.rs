@@ -1,7 +1,27 @@
+/**
+DNS Audit Tool
+
+(c) 2023 Benjamin P Wilder, All Rights Reserved
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+*/
+
+
 use std::{net::{UdpSocket, SocketAddr}};
 use super::zone;
 
-extern crate ascii;
 extern crate arrayvec;
 use crate::config::{println_verbose, print_verbose};
 
@@ -515,8 +535,8 @@ pub fn read_buff( buff : &[u8], offset: &mut usize, size : usize ) -> Vec<u8> {
 /**
  * Read a qualified name with compression fun 
  */
-pub fn read_qname(buff : &[u8], offset : &mut usize) -> ascii::AsciiString {
-	let mut dest = ascii::AsciiString::new();
+pub fn read_qname(buff : &[u8], offset : &mut usize) -> String {
+	let mut dest = String::new();
 	while *offset < buff.len()  {
 		if !qname_namepart( &mut dest, buff, offset) {
 			break;
@@ -528,7 +548,7 @@ pub fn read_qname(buff : &[u8], offset : &mut usize) -> ascii::AsciiString {
 /**
  * each part of the name, with support for dns compression
  */
-fn qname_namepart(  dn : &mut ascii::AsciiString, buffer : &[u8], offset : &mut usize ) -> bool {
+fn qname_namepart(  dn : &mut String, buffer : &[u8], offset : &mut usize ) -> bool {
 
 	if *offset >= buffer.len() {
 		return false;
@@ -563,11 +583,11 @@ fn qname_namepart(  dn : &mut ascii::AsciiString, buffer : &[u8], offset : &mut 
 		let dn_vec = read_buff(buffer, offset, part_len as usize );
 
 		if dn.len() > 0 {
-			dn.push(ascii::AsciiChar::from_ascii::<char>('.').unwrap());
+			dn.push('.');
 		}
 
 		for c in dn_vec {
-			dn.push(ascii::AsciiChar::from_ascii::<u8>(c).unwrap() );
+			dn.push( c as char );
 		}
 
 	}
@@ -578,7 +598,7 @@ fn qname_namepart(  dn : &mut ascii::AsciiString, buffer : &[u8], offset : &mut 
  * Question section from the dns query
  */
 pub struct Question {
-	host : ascii::AsciiString,
+	host : String,
 	qtype : QueryType,
 	qclass : NSClass
 }
@@ -652,7 +672,7 @@ impl Wire for Question {
 impl Default for Question {
 	fn default() -> Self {
 		Self {
-			host: ascii::AsciiString::new(),
+			host: String::new(),
 			qtype: QueryType::T_INVALID,
 			qclass: NSClass::C_INVALID,
 		}
@@ -837,7 +857,7 @@ impl Sender {
 		}
 	}
 
-	pub fn query( &mut self, host : & ascii::AsciiString , query_type : QueryType ) -> Result<(),String>{
+	pub fn query( &mut self, host : & String , query_type : QueryType ) -> Result<(),String>{
 
 		let socket = match UdpSocket::bind("0.0.0.0:0") {
 			Ok(m) => { m },
@@ -894,7 +914,7 @@ impl Sender {
 		println_verbose!(VERBOSE3, "question complete");
 
 
-		println_verbose!(VERBOSE1, "Sending request of {} bytes\nSEND: {}", (request.len()), send_header);
+		println_verbose!(VERBOSE2, "Sending request of {} bytes\nSEND: {}", (request.len()), send_header);
 
 		if let Err(e) = socket.send( &request ) {
 			return Err(format!("send failed {}", e).to_string());
@@ -913,7 +933,7 @@ impl Sender {
 		match socket.recv_from(&mut buff) {
 			Ok( (size, _addr) ) => {
 
-				println_verbose!(VERBOSE1, "read {} bytes from {}", size, _addr);
+				println_verbose!(VERBOSE3, "read {} bytes from {}", size, _addr);
 				read_sz = size;
 			},
 			Err(e) => {
@@ -939,8 +959,8 @@ impl Sender {
 
 		self.recv_header.read(&buff, &mut offset);
 
-		println_verbose!(VERBOSE2, "READ {} bytes", read_sz);
-		println_verbose!(VERBOSE1, "READ: {}", (self.recv_header) );
+		println_verbose!(VERBOSE3, "READ {} bytes", read_sz);
+		println_verbose!(VERBOSE2, "READ: {}", (self.recv_header) );
 
 		// read the question section
 		let mut x = 0;
