@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::{root, query::{self}, zone};
-use std::{sync::{Arc, RwLock}};
+use std::{sync::{Arc, RwLock, Mutex}};
 
 #[derive(Serialize, Deserialize)]
 pub enum ErrorCode {
@@ -66,11 +66,11 @@ impl Monitor {
 	 * this function will test to make sure the ns and ip address
 	 * it will return true if everything matches, or false if not
 	 */
-	pub fn test( inme : &Arc<RwLock<Monitor>>, root : &mut root::Root ) -> MonitorResult {
+	pub fn test( inme : Arc<RwLock<Monitor>>, root : Arc<RwLock<root::Root>> ) -> Arc<Mutex<MonitorResult>> {
 
-		let me = &inme.read().unwrap();
+		let me = inme.read().unwrap();
 
-		let mut rval: MonitorResult = MonitorResult {
+		let mut rval = MonitorResult {
 			domain_name : me.domain_name.clone(),
 			success: true,
 			reason : Vec::new(),
@@ -78,27 +78,32 @@ impl Monitor {
 			nameservers: None,
 			ips: None,
 		};
-
-
+		
 		let mut read_ns: Vec<String> = Vec::new();
 
-		if let Ok(m) = root.get_nameservers_and_resolve(&me.domain_name) {
-			let root_ns = &m.read().unwrap();
-			for addr in &root_ns.servers {
+		if let Ok(mut root_write ) = root.write() {
 
-				let mut query = query::Sender::new( &addr.ip );
-				if let Ok(_) = query.query( &me.domain_name, query::QueryType::T_NS) {
-					for rec in &query.authority {
-						if rec.record_type == zone::record::RecordType::NS {
-							if let Some(namerr) = rec.rdata.as_ref().unwrap().as_any().downcast_ref::<zone::rr::RDATANameRR>() {
-								read_ns.push( namerr.name.fqdn.clone());
+			if let Ok(m) =  root_write.get_nameservers_and_resolve(&me.domain_name) {
+				let root_ns = m.read().unwrap();
+				for addr in &root_ns.servers {
+
+					let addr_lock = addr.read().unwrap();
+					let mut query = query::Sender::new( &addr_lock.ip );
+					if let Ok(_) = query.query( &me.domain_name, query::QueryType::T_NS) {
+						for rec in &query.authority {
+							if rec.record_type == zone::record::RecordType::NS {
+								if let Some(namerr) = rec.rdata.as_ref().unwrap().as_any().downcast_ref::<zone::rr::RDATANameRR>() {
+									read_ns.push( namerr.name.fqdn.clone());
+								}
 							}
 						}
+						break;
 					}
-					break;
 				}
+
 			}
 
+			drop(root_write);
 		}
 
 		if let Some(ns) = &me.ns {
@@ -192,6 +197,7 @@ impl Monitor {
 						rval.reason.push( "did not return the correct ips".to_string() );
 						rval.success = false;
 					} else {
+						let ips = rval.ips.as_ref().unwrap();
 						for ip in rval.ips.as_ref().unwrap() {
 							let mut found = false;
 							for ip2 in ips {
@@ -215,8 +221,7 @@ impl Monitor {
 
 		}
 
-
-		rval
+		Arc::new(Mutex::new(rval))
 	}
 
 	pub fn normalize(&mut self) {

@@ -22,11 +22,13 @@
             },
             "args": [
                 "--root-zone",
-                "/home/ben/dns/root.zone",
+                "root.zone",
                 "--cache-in",
-                "root.json",
+                "root.cache",
                 "-c",
-                "input.json"
+                "test.json",
+                "--threads",
+                "2"
             ],
             "env": {
                 "RUST_BACKTRACE": "1"

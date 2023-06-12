@@ -67,7 +67,7 @@ impl Clone for NameServer {
 #[derive(Serialize, Deserialize)]
 pub struct NameServersForZone	 {
 	pub zone_name : String,
-	pub servers : Vec< NameServer >
+	pub servers : Vec< Arc<RwLock<NameServer>> >
 }
 
 impl NameServersForZone {
@@ -79,7 +79,9 @@ impl NameServersForZone {
 	}
 
 	pub fn sort( &mut self ) {
-		self.servers.sort_by(|a,b| {
+		self.servers.sort_by(|_a,_b| {
+			let a = _a.read().unwrap();
+			let b = _b.read().unwrap();
 
 			if a.speed.is_none() && b.speed.is_none() {
 				Ordering::Equal
@@ -106,59 +108,60 @@ impl Clone for NameServersForZone {
 
 
 pub struct Root {
-	pub zone : zone::Zone,
-	pub root_addr : std::collections::hash_map::HashMap< String, std::sync::Arc<RwLock<NameServersForZone>> >,
-
-	nameservers : std::collections::hash_map::HashMap::<String, Vec< zone::record::ZoneRecord >>,
-	addresses : std::collections::hash_map::HashMap::<String, Vec< zone::record::ZoneRecord >>
+	pub root_addr : std::collections::hash_map::HashMap< String, std::sync::Arc<RwLock<NameServersForZone>> >
 
 }
 
 impl Root {
 
 	pub fn create( file_name : &String, origin : &String )  -> Result< Self, String > {
-		let mut rval = Root {
-			zone: match zone::Zone::create(&file_name, &origin)  {
-				Ok(m) => { m },
-				Err(e) => { return Err(e) }
-			},
-			root_addr: std::collections::hash_map::HashMap::new(),
-			nameservers: std::collections::hash_map::HashMap::new(),
-			addresses: std::collections::hash_map::HashMap::new(),
+		let mut rval = Root {			
+			root_addr: std::collections::hash_map::HashMap::new()
 		};
 
-		rval.from_file()?;
+		rval.from_file(file_name, origin)?;
 
 		Ok(rval)
 	}
 
-	pub fn from_file<'a>( &'a mut self) -> Result< (), String > {
+	pub fn from_file<'a>( &'a mut self, file_name : &String, origin : &String ) -> Result< (), String > {
 
-		for record in &mut self.zone.records {
+		let mut zone = match zone::Zone::create(&file_name, &origin)  {
+			Ok(m) => { m },
+			Err(e) => { return Err(e) }
+		};
+
+		let mut nameservers : std::collections::hash_map::HashMap::<String, Vec< std::sync::Arc<RwLock<zone::record::ZoneRecord >>>> = std::collections::hash_map::HashMap::new();
+		let mut addresses : std::collections::hash_map::HashMap::<String, Vec< std::sync::Arc<RwLock<zone::record::ZoneRecord >>>> = std::collections::hash_map::HashMap::new();
+
+
+		for record in &mut zone.records {
 
 			let zone_record = record.as_any().downcast_mut::<zone::record::ZoneRecord>();
 			match zone_record {
 				Some(rec) => {
 
 					if rec.record_type == zone::record::RecordType::NS {
-						self.nameservers.entry(rec.name.fqdn.clone()).or_insert_with( || Vec::new() ).push( rec.clone() );
+						nameservers.entry(rec.name.fqdn.clone()).or_insert_with( || Vec::new() ).push( Arc::new(RwLock::new(rec.clone())) );
 					} else if rec.record_type == zone::record::RecordType::A || rec.record_type == zone::record::RecordType::AAAA {
-						self.addresses.entry(rec.name.fqdn.clone()).or_insert_with(|| Vec::new()).push( rec.clone() );			
+						addresses.entry(rec.name.fqdn.clone()).or_insert_with(|| Vec::new()).push( Arc::new(RwLock::new(rec.clone())) );			
 					}
 				},
 				None => {}
 			}
 		}
 
-		for (zone_name, zone_record) in &mut self.nameservers {
+		for (zone_name, zone_record) in &mut nameservers {
 
 			for server in zone_record.iter_mut() {
-				if let Some(rdata) = &mut server.rdata {
-					if let Some(ns_rr) = rdata.as_mut().as_any_mut().downcast_mut::<zone::rr::RDATANameRR>() {
-						if let Some(i) = self.addresses.get_mut( &ns_rr.name.fqdn.clone() ) {
+				let l = server.read().unwrap();
+				if let Some(rdata) = &l.rdata {
+					if let Some(ns_rr) = rdata.as_any().downcast_ref::<zone::rr::RDATANameRR>() {
+						if let Some(i) = addresses.get_mut( &ns_rr.name.fqdn.clone() ) {
 							let e = self.root_addr.entry(zone_name.clone()).or_insert_with(|| std::sync::Arc::new(RwLock::new( NameServersForZone::new(&zone_name))));
 							for zr in i {
-								e.write().unwrap().servers.push( NameServer::new(zr));
+								let zr_lock = zr.read().unwrap();
+								e.write().unwrap().servers.push( Arc::new(RwLock::new(NameServer::new(&*zr_lock))));
 							}
 						}
 					}
@@ -279,7 +282,8 @@ impl Root {
 					if let Some(last_ns_s) = &last_ns {
 
 						for rec in &last_ns_s.read().unwrap().servers {
-							let mut sender = query::Sender::new( &rec.ip );
+							let ip = rec.read().unwrap().ip.clone();
+							let mut sender = query::Sender::new( &ip );
 							if let Err(e) = sender.query(&_zone_name, query::QueryType::T_NS) {
 								println_verbose!(VERBOSE2, "Error querying '{}': {}", _zone_name, e);
 								continue;
@@ -310,7 +314,7 @@ impl Root {
 													if (addrrec.record_type == zone::record::RecordType::A || addrrec.record_type == zone::record::RecordType::AAAA) && addrrec.name.fqdn.eq_ignore_ascii_case( &val.name.fqdn ) {
 														found = true;
 														println_verbose!(VERBOSE2, "Adding '{}' for '{}'", addrrec, _zone_name);
-														zone_ns_w.servers.push(NameServer::new(addrrec));
+														zone_ns_w.servers.push(Arc::new(RwLock::new(NameServer::new(addrrec))));
 													}
 												}
 											}
@@ -328,11 +332,11 @@ impl Root {
 								for name in needs_ip {
 									if let Ok( addresses ) = dns_lookup::lookup_host( &name ) {
 										for addr in addresses {
-											zone_ns_w.servers.push( NameServer {
+											zone_ns_w.servers.push( Arc::new(RwLock::new(NameServer {
 												server_name : name.clone(),
 												ip: addr, 
 												speed: None
-											});
+											})));
 										}
 									}
 								}
@@ -435,7 +439,7 @@ impl Root {
 
 					let start = std::time::SystemTime::now();
 
-					let mut sender = query::Sender::new( &server.ip );
+					let mut sender = query::Sender::new( & server.read().unwrap().ip.clone() );
 					match sender.query(& zone_str, query::QueryType::T_SOA) {
 						Ok(()) => { 
 							is_ok = true;
@@ -449,13 +453,15 @@ impl Root {
 
 				}
 
+				let mut server_locked = server.write().unwrap();
+
 				if is_ok { 
-					server.speed = Some( durations.div_f32( 5f32 ) );
+					server_locked.speed = Some( durations.div_f32( 5f32 ) );
 				} else {
-					server.speed = None;
+					server_locked.speed = None;
 				}
 
-				println_verbose!(VERBOSE1, "Server {} Time {:?}", server.server_name, server.speed);
+				println_verbose!(VERBOSE1, "Server {} Time {:?}", server_locked.server_name, server_locked.speed);
 
 			}
 
@@ -504,10 +510,7 @@ impl<'de> serde::Deserialize<'de> for Root {
 	{
 		
 		let mut rval = Self {
-			zone: Default::default(),
-			root_addr: Default::default(),
-			nameservers: Default::default(),
-			addresses: Default::default()
+			root_addr: Default::default()
 		};
 
 		let visitor = RootVisitor {};
@@ -565,7 +568,8 @@ impl std::fmt::Display for Root {
 		for (zone_name, records) in &self.root_addr {
 			write!(f, "\nZone: '{}'", zone_name)?;
 
-			for rec in &records.write().unwrap().servers {
+			for _rec in &records.write().unwrap().servers {
+				let rec = _rec.read().unwrap();
 				write!(f, "\n\t{} {:?}", rec.ip, rec.speed)?;
 			}
 		}

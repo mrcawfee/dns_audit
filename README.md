@@ -18,6 +18,7 @@ cargo build
 | --cache-out file | write the root nameserver performance cache, for input with cache-in |
 | --all | write all results, not just the errors |
 | -w # | check every # seconds continously, program will exit upon any error |
+| --threads # | how many threads to test with |
 
 ## First run
 For your first run you are going to want to test the root nameservers to determine which is fastest, this

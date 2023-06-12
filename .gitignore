@@ -1,3 +1,6 @@
 target
 Cargo.lock
 .vscode
+root.cache
+root.zone
+test.json
